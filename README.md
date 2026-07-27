@@ -62,7 +62,12 @@ Vercel es la opción más simple para una app Next.js (despliegue automático de
 
 ### ⚠️ Documentos subidos y almacenamiento en Vercel
 
-Vercel ejecuta la app en funciones serverless con **sistema de archivos efímero y de solo lectura** (salvo `/tmp`, que no persiste entre invocaciones). El driver de almacenamiento actual (`lib/storage.ts`) guarda los documentos subidos en disco local — **funciona para desarrollo local, pero no persistirá los archivos en Vercel**. Antes de usar la función de subir documentos en producción, cambia `StorageDriver` a un driver de S3 (o compatible, ej. Vercel Blob, Cloudflare R2) — la interfaz ya está diseñada para eso; solo falta implementar el driver y ajustar la variable de entorno correspondiente. Puedo hacerlo si me dices qué proveedor de almacenamiento prefieres.
+Vercel ejecuta la app en funciones serverless con **sistema de archivos efímero y de solo lectura** (salvo `/tmp`, que no persiste entre invocaciones). Por eso `lib/storage.ts` soporta dos drivers, elegidos con la variable `STORAGE_DRIVER`:
+
+- `local` (**por defecto**, incluido este primer despliegue): guarda los documentos en disco. Funciona en desarrollo, pero **no persistirá los archivos subidos en Vercel** — si alguien sube un documento en producción, puede desaparecer en el siguiente deploy o al reiniciarse la función.
+- `vercel-blob`: usa [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) para guardar los archivos de forma persistente. Ya está implementado (`@vercel/blob`) — para activarlo: conecta *Storage → Blob* al proyecto en Vercel (inyecta `BLOB_READ_WRITE_TOKEN` automáticamente) y pon `STORAGE_DRIVER=vercel-blob` en las variables de entorno. No requiere ningún otro cambio de código.
+
+Mientras el equipo no suba documentos reales en producción, o mientras se decide el proveedor de almacenamiento definitivo, dejarlo en `local` es seguro — solo hay que activar `vercel-blob` antes de depender de esa función en el entorno desplegado.
 
 ## Variables de entorno
 
@@ -75,6 +80,7 @@ Vercel ejecuta la app en funciones serverless con **sistema de archivos efímero
 | `CRON_SECRET` | Para el scraper automático | Token bearer que protege `POST /api/cron/scrape`. Debe coincidir con el secret `CRON_SECRET` configurado en GitHub Actions. |
 | `OCDS_BASE_URL` | No | Dominio base de la fuente de datos abiertos OCDS de PanamaCompraenCifras. Ver advertencia abajo. |
 | `PORTAL_LIVE_SCRAPER_ENABLED` | No | `"true"` para habilitar el conector experimental del portal en vivo (deshabilitado por defecto). |
+| `STORAGE_DRIVER` | No | `"local"` (por defecto) o `"vercel-blob"`. Ver advertencia sobre almacenamiento en Vercel. |
 
 ## ⚠️ Notas importantes sobre el scraper
 
