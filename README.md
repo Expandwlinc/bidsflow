@@ -44,6 +44,26 @@ CRM interno para darle seguimiento a las licitaciones publicadas en [panamacompr
 
    Abre [http://localhost:3000](http://localhost:3000).
 
+## Despliegue en Vercel + Neon (recomendado)
+
+Vercel es la opción más simple para una app Next.js (despliegue automático desde GitHub, cero configuración de servidor). Para la base de datos, [Neon](https://neon.tech) ofrece Postgres administrado con un plan gratuito y se integra directamente desde el marketplace de Vercel.
+
+1. **Base de datos**: en el [dashboard de Vercel](https://vercel.com/dashboard) → *Storage* → *Create Database* → elige **Neon** (Postgres). Copia la `DATABASE_URL` que te da.
+2. **Importar el proyecto**: en Vercel → *Add New* → *Project* → conecta tu cuenta de GitHub → selecciona el repositorio `Expandwlinc/bidsflow` → elige la rama que quieras publicar (ej. `main`, luego de mezclar el PR).
+3. **Variables de entorno**: en la configuración del proyecto en Vercel, agrega las de la tabla de abajo (`DATABASE_URL` ya la tienes del paso 1; genera `NEXTAUTH_SECRET` con `openssl rand -base64 32`; `ANTHROPIC_API_KEY` es tu API key de Anthropic).
+4. **Deploy**: Vercel construye automáticamente con `npm run build`, que ya incluye `prisma generate` y `prisma migrate deploy` (aplica las migraciones a la base de datos en cada deploy — no necesitas correr nada manual).
+5. **Primer usuario admin**: como el seed (`prisma/seed.ts`) no corre automáticamente en Vercel, créalo una vez conectándote a la base de datos con las variables `SEED_ADMIN_*` y ejecutando localmente:
+
+   ```bash
+   DATABASE_URL="<la de Neon>" SEED_ADMIN_EMAIL="admin@tuempresa.com" SEED_ADMIN_PASSWORD="..." npx prisma db seed
+   ```
+
+6. **Actualización diaria del scraper**: agrega los secrets `APP_URL` (la URL que te dio Vercel) y `CRON_SECRET` en GitHub → Settings → Secrets and variables → Actions, para que `.github/workflows/daily-scrape.yml` funcione.
+
+### ⚠️ Documentos subidos y almacenamiento en Vercel
+
+Vercel ejecuta la app en funciones serverless con **sistema de archivos efímero y de solo lectura** (salvo `/tmp`, que no persiste entre invocaciones). El driver de almacenamiento actual (`lib/storage.ts`) guarda los documentos subidos en disco local — **funciona para desarrollo local, pero no persistirá los archivos en Vercel**. Antes de usar la función de subir documentos en producción, cambia `StorageDriver` a un driver de S3 (o compatible, ej. Vercel Blob, Cloudflare R2) — la interfaz ya está diseñada para eso; solo falta implementar el driver y ajustar la variable de entorno correspondiente. Puedo hacerlo si me dices qué proveedor de almacenamiento prefieres.
+
 ## Variables de entorno
 
 | Variable | Requerida | Descripción |
