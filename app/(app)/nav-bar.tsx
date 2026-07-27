@@ -43,9 +43,9 @@ export function NavBar({ userName, userRole }: { userName: string; userRole: "AD
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-500">
+          <Link href="/cuenta" className="text-sm text-slate-500 hover:text-slate-900 hover:underline">
             {userName} <span className="text-xs text-slate-400">({userRole === "ADMIN" ? "admin" : "vendedor"})</span>
-          </span>
+          </Link>
           <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: "/login" })}>
             Salir
           </Button>

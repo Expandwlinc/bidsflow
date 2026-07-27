@@ -9,6 +9,7 @@ CRM interno para darle seguimiento a las licitaciones publicadas en [panamacompr
 - **Por oportunidad**: montos e historial de cambios, gestor de tareas (con requisitos generados desde el análisis de IA), documentos, notas del equipo, log de actividad, fechas clave y recordatorios.
 - **Análisis con IA** (Claude Opus 5): sube o pega el pliego de cargos y obtén un resumen, un checklist de requisitos, un análisis legal de cláusulas riesgosas y un análisis técnico buscando posibles señales de **direccionamiento** en las especificaciones.
 - **Roles**: `ADMIN` (acceso completo, gestión de usuarios y del scraper) y `VENDEDOR` (acceso operativo, sin administración).
+- **Autenticación en dos pasos (TOTP)**: cada usuario puede activar, desde "Mi cuenta", un código de autenticación generado por apps como Google Authenticator o Authy (escaneando un QR). Una vez activado, el login pide ese código además de la contraseña.
 - **Scraper automático diario** vía GitHub Actions, con fuente primaria en el formato de datos abiertos OCDS de PanamaCompraenCifras.
 
 ## Requisitos
