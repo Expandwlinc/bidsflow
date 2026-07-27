@@ -1,0 +1,16 @@
+name: Actualización diaria de licitaciones
+
+on:
+  schedule:
+    # 09:00 UTC = 04:00 hora de Panamá (UTC-5, sin horario de verano)
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar el endpoint de scraping
+        run: |
+          curl --fail -sS -X POST "${{ secrets.APP_URL }}/api/cron/scrape" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
