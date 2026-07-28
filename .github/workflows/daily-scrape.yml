@@ -1,0 +1,24 @@
+name: Actualización diaria de licitaciones
+
+on:
+  schedule:
+    # 09:00 UTC = 04:00 hora de Panamá (UTC-5, sin horario de verano)
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar el endpoint de scraping
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "APP_URL y/o CRON_SECRET todavía no están configurados en Settings → Secrets and variables → Actions."
+            echo "La app aún no está desplegada — este workflow se salta sin marcar error hasta que se configuren."
+            exit 0
+          fi
+          curl --fail -sS -X POST "${APP_URL}/api/cron/scrape" \
+            -H "Authorization: Bearer ${CRON_SECRET}"

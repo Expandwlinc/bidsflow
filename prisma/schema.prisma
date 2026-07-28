@@ -1,0 +1,264 @@
+// BidsFlow — CRM de licitaciones PanamaCompra
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  VENDEDOR
+}
+
+enum TenderSource {
+  OCDS_BULK
+  PORTAL_SCRAPE
+  MANUAL
+}
+
+enum TenderStatus {
+  PUBLICADO
+  ABIERTO
+  CERRADO
+  ADJUDICADO
+  CANCELADO
+  DESCONOCIDO
+}
+
+enum OpportunityStage {
+  INTERESADO
+  EN_PREPARACION
+  PROPUESTA_ENVIADA
+  GANADA
+  PERDIDA
+  DESCARTADA
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+enum DocumentType {
+  PLIEGO
+  PROPUESTA
+  GARANTIA
+  ADENDA
+  OTRO
+}
+
+enum AIAnalysisRiskLevel {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+enum ScrapeRunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(VENDEDOR)
+  totpSecret   String?
+  totpEnabled  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  opportunitiesAssigned Opportunity[]  @relation("OpportunityAssignedTo")
+  opportunitiesCreated  Opportunity[]  @relation("OpportunityCreatedBy")
+  tasksAssigned         Task[]         @relation("TaskAssignedTo")
+  documentsUploaded     Document[]
+  notes                 Note[]
+  activityLogs          ActivityLog[]
+  remindersCreated      Reminder[]
+}
+
+model Tender {
+  id                String       @id @default(cuid())
+  externalId        String       @unique
+  source            TenderSource @default(MANUAL)
+  title             String
+  entity            String
+  description       String?      @db.Text
+  amount            Decimal?     @db.Decimal(14, 2)
+  currency          String       @default("USD")
+  status            TenderStatus @default(DESCONOCIDO)
+  category          String?
+  procurementMethod String?
+  publishDate       DateTime?
+  closingDate       DateTime?
+  actDate           DateTime?
+  url               String?
+  pliegoDocumentUrl String?
+  rawData           Json?
+  lastScrapedAt     DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  opportunity   Opportunity?
+  amountHistory TenderAmountHistory[]
+  changeLogs    TenderChangeLog[]
+
+  @@index([status])
+  @@index([closingDate])
+}
+
+model Opportunity {
+  id           String           @id @default(cuid())
+  tenderId     String           @unique
+  tender       Tender           @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  stage        OpportunityStage @default(INTERESADO)
+  priority     Int              @default(0)
+  assignedToId String?
+  assignedTo   User?            @relation("OpportunityAssignedTo", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User             @relation("OpportunityCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  tasks     Task[]
+  documents Document[]
+  notes     Note[]
+  activity  ActivityLog[]
+  reminders Reminder[]
+  analyses  AIAnalysis[]
+
+  @@index([stage])
+}
+
+model TenderAmountHistory {
+  id         String   @id @default(cuid())
+  tenderId   String
+  tender     Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  amount     Decimal  @db.Decimal(14, 2)
+  currency   String   @default("USD")
+  recordedAt DateTime @default(now())
+  source     TenderSource
+
+  @@index([tenderId, recordedAt])
+}
+
+model TenderChangeLog {
+  id         String   @id @default(cuid())
+  tenderId   String
+  tender     Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  field      String
+  oldValue   String?
+  newValue   String?
+  detectedAt DateTime @default(now())
+
+  @@index([tenderId, detectedAt])
+}
+
+model Task {
+  id              String     @id @default(cuid())
+  opportunityId   String
+  opportunity     Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?    @db.Text
+  status          TaskStatus @default(TODO)
+  dueDate         DateTime?
+  assignedToId    String?
+  assignedTo      User?      @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  isRequirement   Boolean    @default(false)
+  createdFromAi   Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([opportunityId, status])
+}
+
+model Document {
+  id            String       @id @default(cuid())
+  opportunityId String
+  opportunity   Opportunity  @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  name          String
+  storageKey    String
+  mimeType      String?
+  sizeBytes     Int?
+  type          DocumentType @default(OTRO)
+  uploadedById  String
+  uploadedBy    User         @relation(fields: [uploadedById], references: [id])
+  createdAt     DateTime     @default(now())
+
+  @@index([opportunityId])
+}
+
+model Note {
+  id            String      @id @default(cuid())
+  opportunityId String
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User        @relation(fields: [authorId], references: [id])
+  body          String      @db.Text
+  createdAt     DateTime    @default(now())
+
+  @@index([opportunityId, createdAt])
+}
+
+model ActivityLog {
+  id            String      @id @default(cuid())
+  opportunityId String
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id])
+  action        String
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+
+  @@index([opportunityId, createdAt])
+}
+
+model Reminder {
+  id            String      @id @default(cuid())
+  opportunityId String
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  title         String
+  remindAt      DateTime
+  done          Boolean     @default(false)
+  createdById   String
+  createdBy     User        @relation(fields: [createdById], references: [id])
+  createdAt     DateTime    @default(now())
+
+  @@index([opportunityId, remindAt])
+}
+
+model AIAnalysis {
+  id             String              @id @default(cuid())
+  opportunityId  String
+  opportunity    Opportunity         @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  summary        String              @db.Text
+  riskLevel      AIAnalysisRiskLevel @default(BAJA)
+  findings       Json
+  rawModelOutput Json
+  model          String
+  createdAt      DateTime            @default(now())
+
+  @@index([opportunityId, createdAt])
+}
+
+model ScrapeRun {
+  id           String          @id @default(cuid())
+  source       TenderSource
+  status       ScrapeRunStatus @default(RUNNING)
+  startedAt    DateTime        @default(now())
+  finishedAt   DateTime?
+  newCount     Int             @default(0)
+  updatedCount Int             @default(0)
+  errorMessage String?         @db.Text
+
+  @@index([startedAt])
+}
